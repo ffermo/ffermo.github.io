@@ -2,6 +2,19 @@ import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild }
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js'
 
+const BACKGROUND_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/milkyway.jpg');
+const EARTH_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/earth.jpg');
+const MAX_FOV: number = 50;
+const MIN_FOV: number = 5;
+
+const QUEZON_TARGET: LatLon = {lat: 14.4, lon: 121}
+const ORLANDO_TARGET: LatLon = {lat: 28.3, lon: -81.2}
+
+export interface LatLon {
+  lat: number;
+  lon: number;
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -9,13 +22,7 @@ import * as TWEEN from '@tweenjs/tween.js'
 })
 
 export class AppComponent implements OnInit, AfterViewInit {
-  IMAGE_LOADER: THREE.ImageLoader = new THREE.ImageLoader();
-  BACKGROUND_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/milkyway.jpg');
-  EARTH_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/earth_night.jpg');
-  MAX_FOV: number = 125;
-  MIN_FOV: number = 50;
-
-  TARGET_LOCAL_POINT = new THREE.Vector3(1.5, .67, 2.5);
+  
   isPaused = false;
 
   @ViewChild("spaceCanvas") space: ElementRef;
@@ -23,9 +30,11 @@ export class AppComponent implements OnInit, AfterViewInit {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   tweenCamera: TWEEN.Tween<any>
+  renderer: THREE.WebGLRenderer;
+
   raycaster: THREE.Raycaster = new THREE.Raycaster();
   pointer: THREE.Vector2 = new THREE.Vector2();
-  renderer: THREE.WebGLRenderer;
+  spherical: THREE.Spherical = new THREE.Spherical();
 
   animationFrame: number;
 
@@ -34,7 +43,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   get spaceCanvas() { return this.space.nativeElement }
 
-  @HostListener('mousewheel', ['$event']) handleMouseWheel(event: any){
+  @HostListener('wheel', ['$event']) handleMouseWheel(event: any){
     if (event) {
       this.onMouseWheel(event);
     }
@@ -48,8 +57,8 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.scene = new THREE.Scene();
-    this.scene.background = this.BACKGROUND_TEXTURE;
-    this.camera = new THREE.PerspectiveCamera(this.MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
+    this.scene.background = BACKGROUND_TEXTURE;
+    this.camera = new THREE.PerspectiveCamera(MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
   }
 
   ngAfterViewInit(): void {
@@ -67,24 +76,26 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   setEarth() {
     // Earth textures and mesh.
-    const earthSphere = new THREE.SphereGeometry(3, 256, 256);
+    const earthSphere = new THREE.SphereGeometry(1, 256, 256, (-Math.PI/2) - .002, Math.PI*2);
     const normalTexture = new THREE.TextureLoader().load('assets/textures/earth_normal.jpg');
     const specularTexture = new THREE.TextureLoader().load('assets/textures/earth_spec.jpg');
     const earthMaterial = new THREE.MeshPhongMaterial({
-      map: this.EARTH_TEXTURE,
+      map: EARTH_TEXTURE,
       normalMap: normalTexture,
-      normalScale: new THREE.Vector2(5, 5),
+      normalScale: new THREE.Vector2(10, 10),
       specularMap: specularTexture,
     });
+    // const earthSphere = new THREE.SphereGeometry(1, 256, 256, (-Math.PI/2) - .002, Math.PI*2-.002);
+
 
     // Cloud textures and mesh
-    const cloudSphere = new THREE.SphereGeometry(3.01, 256, 256);
+    const cloudSphere = new THREE.SphereGeometry(1.01, 256, 256);
     const cloudTexture = new THREE.TextureLoader().load('assets/textures/earth_clouds.jpg');
 
     const cloudMaterial = new THREE.MeshBasicMaterial({
       map: cloudTexture,
       transparent: true,
-      opacity: .15,
+      opacity: .25,
     })
 
     this.earth = new THREE.Mesh(earthSphere, earthMaterial);
@@ -95,7 +106,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   setLights() {
     const light = new THREE.DirectionalLight(0xfdfbd3, .75);
-    light.position.set( 0, 0, 1 ).normalize();
+    light.position.set( 1, 0, 1 ).normalize();
     light.castShadow = true;
 
     this.scene.add(light)
@@ -105,6 +116,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   setRenderer() {
     this.renderer = new THREE.WebGL1Renderer({canvas: this.spaceCanvas, antialias: true});
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
   }
 
   updateScene() {
@@ -128,19 +140,18 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (this.isPaused) {
       return;
     }
-    this.earth.rotateX(.00005)
-    this.earth.rotateY(-.0001);
-    this.clouds.rotateX(.00005)
-    this.clouds.rotateY(-.0001);
+    // this.earth.rotateX(.00005)
+    this.earth.rotateY(-.0003);
+    // this.clouds.rotateX(.00005)
+    this.clouds.rotateY(-.0003);
 
     this.camera.position.z = 5;
     this.renderer.render(this.scene, this.camera);
   }
 
-  isNearTarget(localPoint: THREE.Vector3, targetPoint: THREE.Vector3): boolean {
-    return Math.abs(localPoint.x - targetPoint.x) < .1 && 
-      Math.abs(localPoint.y - targetPoint.y) < .1 &&
-      Math.abs(localPoint.z - targetPoint.z) < .1;
+  isNearTarget(local: LatLon, target: LatLon): boolean {
+    return Math.abs(local.lat - target.lat) < .5 && 
+      Math.abs(local.lon - target.lon) < .5
   }
 
   onMouseClick(event: any) {
@@ -154,8 +165,18 @@ export class AppComponent implements OnInit, AfterViewInit {
       intersects.forEach(intersect => {
         const localPoint = new THREE.Vector3();
         this.earth.worldToLocal(localPoint.copy(intersect.point)); 
-        if (this.isNearTarget(localPoint, this.TARGET_LOCAL_POINT)) {
+        this.spherical.setFromVector3(localPoint);
           console.log(localPoint);
+          
+          const lat = THREE.MathUtils.radToDeg(Math.PI / 2 - this.spherical.phi);
+          const lon = THREE.MathUtils.radToDeg(this.spherical.theta);
+
+          const localCoords: LatLon = {lat: lat, lon: lon};
+
+          console.log("lat: " + lat + ", lon: " + lon);
+        if (this.isNearTarget(localCoords, QUEZON_TARGET)) {
+          this.isPaused = true;
+        } else if (this.isNearTarget(localCoords, ORLANDO_TARGET)){
           this.isPaused = true;
         } else {
           this.isPaused = false;
@@ -171,7 +192,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   onMouseWheel(event: any) {
     const newFov = this.camera.fov - event.wheelDeltaY * .1;
-    const minOrMaxFov = Math.max( Math.min( newFov, this.MAX_FOV ), this.MIN_FOV );
+    const minOrMaxFov = Math.max( Math.min( newFov, MAX_FOV ), MIN_FOV );
 
     TWEEN.removeAll();
     this.tweenCamera = new TWEEN.Tween({ fov: this.camera.fov })
