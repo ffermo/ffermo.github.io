@@ -2,10 +2,9 @@ import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild }
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js'
 
-const BACKGROUND_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/milkyway.jpg');
 const EARTH_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/earth.jpg');
 const MAX_FOV: number = 50;
-const MIN_FOV: number = 5;
+const MIN_FOV: number = 10;
 
 const QUEZON_TARGET: LatLon = {lat: 14.4, lon: 121}
 const ORLANDO_TARGET: LatLon = {lat: 28.3, lon: -81.2}
@@ -56,13 +55,15 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
-    this.scene = new THREE.Scene();
-    this.scene.background = BACKGROUND_TEXTURE;
+    this.scene = new THREE.Scene(); 
     this.camera = new THREE.PerspectiveCamera(MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
+    this.camera.position.z = 5;
+
   }
 
   ngAfterViewInit(): void {
     this.setCanvas();
+    this.setGalaxy();
     this.setEarth();
     this.setLights();
     this.setRenderer();
@@ -72,6 +73,18 @@ export class AppComponent implements OnInit, AfterViewInit {
   setCanvas() {
     this.spaceCanvas.width = window.innerWidth;
     this.spaceCanvas.height = window.innerHeight;
+  }
+
+  setGalaxy() {
+    new THREE.TextureLoader().load('assets/textures/milkyway.jpg', texture => {
+      const galaxyPlane = new THREE.PlaneGeometry(texture.image.width/512, texture.image.height/512);
+      const galaxyTexture = texture;
+      const galaxyMaterial = new THREE.MeshBasicMaterial( {map: galaxyTexture} );
+      const galaxy = new THREE.Mesh(galaxyPlane, galaxyMaterial);
+  
+      galaxy.position.z = 0;
+      this.scene.add(galaxy);
+    });
   }
 
   setEarth() {
@@ -85,8 +98,6 @@ export class AppComponent implements OnInit, AfterViewInit {
       normalScale: new THREE.Vector2(10, 10),
       specularMap: specularTexture,
     });
-    // const earthSphere = new THREE.SphereGeometry(1, 256, 256, (-Math.PI/2) - .002, Math.PI*2-.002);
-
 
     // Cloud textures and mesh
     const cloudSphere = new THREE.SphereGeometry(1.01, 256, 256);
@@ -116,13 +127,17 @@ export class AppComponent implements OnInit, AfterViewInit {
   setRenderer() {
     this.renderer = new THREE.WebGL1Renderer({canvas: this.spaceCanvas, antialias: true});
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
+    // this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
   }
 
   updateScene() {
     this.camera.aspect = this.spaceCanvas.width / this.spaceCanvas.height;
+    // this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
+    // this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
 
     this.animate();
   }
@@ -145,7 +160,6 @@ export class AppComponent implements OnInit, AfterViewInit {
     // this.clouds.rotateX(.00005)
     this.clouds.rotateY(-.0003);
 
-    this.camera.position.z = 5;
     this.renderer.render(this.scene, this.camera);
   }
 
