@@ -1,1 +1,4 @@
-<canvas #spaceCanvas id="spaceCanvas" class="spaceCanvas" (window:resize)="onWindowResize($event)"></canvas>
+<canvas #spaceCanvas class="spaceCanvas"
+  [ngStyle]="{ 'cursor': isHoveringTarget ? 'pointer' : 'default' }"
+  (window:resize)="onWindowResize($event)">
+</canvas>

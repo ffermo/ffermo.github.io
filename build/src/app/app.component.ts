@@ -1,10 +1,11 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 
 const EARTH_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/earth.jpg');
-const MAX_FOV: number = 50;
-const MIN_FOV: number = 10;
+const MAX_FOV: number = 120;
+const MIN_FOV: number = 40;
 
 const QUEZON_TARGET: LatLon = {lat: 14.4, lon: 121}
 const ORLANDO_TARGET: LatLon = {lat: 28.3, lon: -81.2}
@@ -21,19 +22,25 @@ export interface LatLon {
 })
 
 export class AppComponent implements OnInit, AfterViewInit {
-  
-  isPaused = false;
-
   @ViewChild("spaceCanvas") space: ElementRef;
 
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
-  tweenCamera: TWEEN.Tween<any>
+  controls: OrbitControls;
+  directLight: THREE.DirectionalLight;
+  ambientLight: THREE.AmbientLight;
+  tweenCamera: TWEEN.Tween<any>;
   renderer: THREE.WebGLRenderer;
+  isPaused = false;
 
   raycaster: THREE.Raycaster = new THREE.Raycaster();
-  pointer: THREE.Vector2 = new THREE.Vector2();
   spherical: THREE.Spherical = new THREE.Spherical();
+
+  // Mouse helpers.
+  pointer: THREE.Vector2 = new THREE.Vector2();
+  isMouseDownEarth: boolean = false;
+  isMouseRotatingEarth: boolean = false;
+  isHoveringTarget: boolean = false;
 
   animationFrame: number;
 
@@ -49,16 +56,37 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
   
   @HostListener('click', ['$event']) handleMouseClick(event: any){
-    if (event) {
+    if (event && !this.isMouseRotatingEarth) {
       this.onMouseClick(event);
+    }
+  }
+
+  @HostListener('mousedown', ['$event']) handleMouseDown(event: any){
+    if (event) {
+      this.onMouseDown(event);
+    }
+  }
+
+  @HostListener('mousemove', ['$event']) handleMouseMove(event: any){
+    if (event) {
+      this.onMouseMove(event);
+    }
+  }
+
+  @HostListener('mouseenter', ['$event']) handleMouseEnter(event: any){
+    if (event) {
+      this.onMouseEnter(event);
+    }
+  }
+
+  @HostListener('mouseup', ['$event']) handleMouseUp(event: any){
+    if (event) {
+      this.onMouseUp(event);
     }
   }
 
   ngOnInit() {
     this.scene = new THREE.Scene(); 
-    this.camera = new THREE.PerspectiveCamera(MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
-    this.camera.position.z = 5;
-
   }
 
   ngAfterViewInit(): void {
@@ -67,6 +95,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.setEarth();
     this.setLights();
     this.setRenderer();
+    this.setCamera();
     this.animate();
   }
 
@@ -76,13 +105,17 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   setGalaxy() {
-    new THREE.TextureLoader().load('assets/textures/milkyway.jpg', texture => {
-      const galaxyPlane = new THREE.PlaneGeometry(texture.image.width/512, texture.image.height/512);
+    new THREE.TextureLoader().load('assets/textures/milkyway_sphere.jpg', texture => {
+      const galaxyPlane = new THREE.SphereGeometry(64, 256, 256);
       const galaxyTexture = texture;
-      const galaxyMaterial = new THREE.MeshBasicMaterial( {map: galaxyTexture} );
+      const galaxyMaterial = new THREE.MeshBasicMaterial( {
+        map: galaxyTexture,
+        side: THREE.DoubleSide
+      } );
       const galaxy = new THREE.Mesh(galaxyPlane, galaxyMaterial);
   
       galaxy.position.z = 0;
+      galaxy.rotateZ(-Math.PI/8);
       this.scene.add(galaxy);
     });
   }
@@ -111,61 +144,72 @@ export class AppComponent implements OnInit, AfterViewInit {
 
     this.earth = new THREE.Mesh(earthSphere, earthMaterial);
     this.clouds = new THREE.Mesh(cloudSphere, cloudMaterial);
+    this.earth.position.z = 2;
+    this.clouds.position.z = 2;
     this.scene.add(this.earth);
     this.scene.add(this.clouds);
   }
 
   setLights() {
-    const light = new THREE.DirectionalLight(0xfdfbd3, .75);
-    light.position.set( 1, 0, 1 ).normalize();
-    light.castShadow = true;
+    this.directLight = new THREE.DirectionalLight(0xfdfbd3, .75);
+    this.directLight.position.set( 4, 0, 1 );
+    this.directLight.castShadow = true;
+    this.directLight.target = this.earth;
 
-    this.scene.add(light)
-    this.scene.add(new THREE.AmbientLight(0xfdfbd3, .1))
+    this.ambientLight = new THREE.AmbientLight(0xfdfbd3, .1);
   }
 
   setRenderer() {
     this.renderer = new THREE.WebGL1Renderer({canvas: this.spaceCanvas, antialias: true});
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
-    // this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+  }
+
+  setCamera() {
+    this.camera = new THREE.PerspectiveCamera(MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
+    this.camera.position.set(0, 0, 4);
+    this.scene.add(this.camera);
+
+    this.camera.add(this.directLight);
+    this.camera.add(this.ambientLight);
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.enableRotate = false;
+    this.controls.enableZoom = false;
+    this.controls.enablePan = false;
+    this.controls.rotateSpeed = .25;
+    this.controls.dampingFactor = .025;
+    this.controls.target = this.earth.position;
   }
 
   updateScene() {
     this.camera.aspect = this.spaceCanvas.width / this.spaceCanvas.height;
-    // this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
-    // this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
 
-    this.animate();
+    // this.animate();
   }
 
   animate(): void {
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
     }
-    this.animationFrame = requestAnimationFrame(() => this.animate());
-    this.render();
     TWEEN.update();
-  }
-
-  render(): void {
-    if (this.isPaused) {
-      return;
-    }
-    // this.earth.rotateX(.00005)
-    this.earth.rotateY(-.0003);
-    // this.clouds.rotateX(.00005)
-    this.clouds.rotateY(-.0003);
-
+    this.controls.update();
+    this.animationFrame = requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
   }
 
   isNearTarget(local: LatLon, target: LatLon): boolean {
     return Math.abs(local.lat - target.lat) < .5 && 
       Math.abs(local.lon - target.lon) < .5
+  }
+
+  onWindowResize(event: any) {
+    this.setCanvas();
+    this.updateScene();
   }
 
   onMouseClick(event: any) {
@@ -180,14 +224,11 @@ export class AppComponent implements OnInit, AfterViewInit {
         const localPoint = new THREE.Vector3();
         this.earth.worldToLocal(localPoint.copy(intersect.point)); 
         this.spherical.setFromVector3(localPoint);
-          console.log(localPoint);
-          
-          const lat = THREE.MathUtils.radToDeg(Math.PI / 2 - this.spherical.phi);
-          const lon = THREE.MathUtils.radToDeg(this.spherical.theta);
 
-          const localCoords: LatLon = {lat: lat, lon: lon};
+        const lat = THREE.MathUtils.radToDeg(Math.PI / 2 - this.spherical.phi);
+        const lon = THREE.MathUtils.radToDeg(this.spherical.theta);
+        const localCoords: LatLon = {lat: lat, lon: lon};
 
-          console.log("lat: " + lat + ", lon: " + lon);
         if (this.isNearTarget(localCoords, QUEZON_TARGET)) {
           this.isPaused = true;
         } else if (this.isNearTarget(localCoords, ORLANDO_TARGET)){
@@ -199,9 +240,46 @@ export class AppComponent implements OnInit, AfterViewInit {
     }
   }
 
-  onWindowResize(event: any) {
-    this.setCanvas();
-    this.updateScene();
+  onMouseDown(event: any) {
+    this.pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    this.pointer.y = -( event.clientY / window.innerHeight ) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+
+    const intersects = this.raycaster.intersectObject(this.earth);
+
+    if (intersects && intersects.length > 0) {
+      this.isMouseDownEarth = true;
+    }
+  }
+
+  onMouseMove(event: any) {
+    this.pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    this.pointer.y = -( event.clientY / window.innerHeight ) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+
+    const intersects = this.raycaster.intersectObject(this.earth);
+    if (intersects && intersects.length > 0 && !this.controls.enableRotate) {
+      this.controls.enableRotate = true;
+    } else if ((!intersects || intersects.length === 0) && this.controls.enableRotate) {
+      if (!this.isMouseRotatingEarth) {
+        this.controls.enableRotate = false;
+      }
+    }
+    if (this.isMouseDownEarth) {
+      this.isMouseRotatingEarth = true;
+    }
+  }
+
+  onMouseEnter(event: any) {
+    if (event.buttons === 0) {
+      this.isMouseDownEarth = false;
+      this.isMouseRotatingEarth = false;
+    }
+  }
+
+  onMouseUp(event: any) {
+    this.isMouseDownEarth = false;
+    this.isMouseRotatingEarth = false;
   }
 
   onMouseWheel(event: any) {
