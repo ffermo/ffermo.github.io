@@ -107,7 +107,7 @@ export class DesktopGalaxyCanvasComponent implements OnInit, AfterViewInit {
   }
 
   setGalaxy() {
-    new THREE.TextureLoader().load('assets/textures/milkyway_sphere.jpg', texture => {
+    new THREE.TextureLoader().load('assets/textures/milkyway.jpg', texture => {
       const galaxyPlane = new THREE.SphereGeometry(64, 256, 256);
       const galaxyTexture = texture;
       const galaxyMaterial = new THREE.MeshBasicMaterial( {

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
@@ -9,8 +9,7 @@ export interface LatLon {
 }
 
 const EARTH_TEXTURE: THREE.Texture = new THREE.TextureLoader().load('assets/textures/earth.jpg');
-const MAX_FOV: number = 120;
-const MIN_FOV: number = 40;
+const FOV: number = 60;
 
 const QUEZON_TARGET: LatLon = {lat: 14.4, lon: 121}
 const ORLANDO_TARGET: LatLon = {lat: 28.3, lon: -81.2}
@@ -20,7 +19,7 @@ const ORLANDO_TARGET: LatLon = {lat: 28.3, lon: -81.2}
   templateUrl: './mobile-galaxy-canvas.component.html',
   styleUrls: ['./mobile-galaxy-canvas.component.scss']
 })
-export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
+export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild("spaceCanvas") space: ElementRef;
 
   scene: THREE.Scene;
@@ -38,12 +37,11 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
   // Mouse helpers.
   pointer: THREE.Vector2 = new THREE.Vector2();
   touches: TouchList;
-  isMouseDownEarth: boolean = false;
-  isMouseRotatingEarth: boolean = false;
   isHoveringTarget: boolean = false;
 
   animationFrame: number;
 
+  galaxy: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   earth: THREE.Mesh<THREE.SphereGeometry, THREE.MeshPhongMaterial>;
   clouds: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
 
@@ -53,16 +51,12 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     window.addEventListener('touchstart', ev => {
-      this.onTouchStart(ev);
+      ev.preventDefault();
     }, { passive: false });
-    
-    window.addEventListener('touchmove', ev => {
-      this.onTouchMove(ev);
-    });
 
-    window.addEventListener('touchend', ev => {
-      this.onTouchEnd(ev);
-    });
+    // window.addEventListener('touchend', ev => {
+    //   // this.onTouchEnd(ev);
+    // }, { passive: false });
 
     this.scene = new THREE.Scene(); 
   }
@@ -76,6 +70,18 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
     this.setCamera();
     this.animate();
   }
+  
+  ngOnDestroy(): void {
+    this.galaxy.material.dispose();
+    this.galaxy.geometry.dispose();
+    this.earth.material.dispose();
+    this.earth.geometry.dispose();
+    this.clouds.material.dispose();
+    this.clouds.geometry.dispose();
+    this.directLight.dispose();
+    this.ambientLight.dispose();
+    this.renderer.dispose();
+  }
 
   setCanvas() {
     this.spaceCanvas.width = window.innerWidth;
@@ -83,18 +89,18 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
   }
 
   setGalaxy() {
-    new THREE.TextureLoader().load('assets/textures/milkyway_sphere.jpg', texture => {
+    new THREE.TextureLoader().load('assets/textures/milkyway.jpg', texture => {
       const galaxyPlane = new THREE.SphereGeometry(64, 256, 256);
       const galaxyTexture = texture;
       const galaxyMaterial = new THREE.MeshBasicMaterial( {
         map: galaxyTexture,
         side: THREE.DoubleSide
       } );
-      const galaxy = new THREE.Mesh(galaxyPlane, galaxyMaterial);
+      this.galaxy = new THREE.Mesh(galaxyPlane, galaxyMaterial);
   
-      galaxy.position.z = 0;
-      galaxy.rotateZ(-Math.PI/8);
-      this.scene.add(galaxy);
+      this.galaxy.position.z = 0;
+      this.galaxy.rotateZ(-Math.PI/8);
+      this.scene.add(this.galaxy);
     });
   }
 
@@ -122,8 +128,6 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
 
     this.earth = new THREE.Mesh(earthSphere, earthMaterial);
     this.clouds = new THREE.Mesh(cloudSphere, cloudMaterial);
-    this.earth.position.z = 2;
-    this.clouds.position.z = 2;
     this.scene.add(this.earth);
     this.scene.add(this.clouds);
   }
@@ -144,8 +148,8 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
   }
 
   setCamera() {
-    this.camera = new THREE.PerspectiveCamera(MAX_FOV, window.innerWidth / window.innerHeight, .1, 1000);
-    this.camera.position.set(0, 0, 4);
+    this.camera = new THREE.PerspectiveCamera(FOV, window.innerWidth / window.innerHeight, .1, 1000);
+    this.camera.position.set(0, 0, 8);
     this.scene.add(this.camera);
 
     this.camera.add(this.directLight);
@@ -153,10 +157,12 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
-    this.controls.enableRotate = false;
-    this.controls.enableZoom = false;
+    this.controls.enableRotate = true;
+    this.controls.enableZoom = true;
+    this.controls.maxDistance = 48;
+    this.controls.minDistance = 2;
     this.controls.enablePan = false;
-    this.controls.rotateSpeed = .25;
+    this.controls.rotateSpeed = .4;
     this.controls.dampingFactor = .025;
     this.controls.target = this.earth.position;
   }
@@ -166,8 +172,6 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.spaceCanvas.width, this.spaceCanvas.height);
     this.renderer.setPixelRatio(window.devicePixelRatio);
-
-    // this.animate();
   }
 
   animate(): void {
@@ -219,71 +223,11 @@ export class MobileGalaxyCanvasComponent implements OnInit, AfterViewInit {
   }
 
   onTouchStart(event: any) {
-    event.preventDefault();
-    this.touches = event.touches;
-
-    if (this.touches.length === 1) {
-      this.pointer.x = ( this.touches[0].clientX / window.innerWidth ) * 2 - 1;
-      this.pointer.y = -( this.touches[0].clientY / window.innerHeight ) * 2 + 1;
-      this.raycaster.setFromCamera(this.pointer, this.camera)
-    }
-    
-    const intersects = this.raycaster.intersectObject(this.earth);
-
-    if (intersects && intersects.length > 0) {
-      console.log("TOUCHED EARTH");
-      this.isMouseDownEarth = true;
-    } else {
-      console.log("TOUCHED SPACE");
-    }
+    // TODO
   }
 
   onTouchMove(event: any) {
-    this.pointer.x = ( this.touches[0].clientX / window.innerWidth ) * 2 - 1;
-    this.pointer.y = -( this.touches[0].clientY / window.innerHeight ) * 2 + 1;
-    this.raycaster.setFromCamera(this.pointer, this.camera)
-
-    const intersects = this.raycaster.intersectObject(this.earth);
-    if (intersects && intersects.length > 0 && !this.controls.enableRotate) {
-      this.controls.enableRotate = true;
-      console.log("ENABLED ROTATE")
-    } else if ((!intersects || intersects.length === 0) && this.controls.enableRotate) {
-      if (!this.isMouseRotatingEarth) {
-        this.controls.enableRotate = false;
-      }
-    }
-    if (this.isMouseDownEarth) {
-      this.isMouseRotatingEarth = true;
-    }
-  }
-
-  onMouseEnter(event: any) {
-    if (event.buttons === 0) {
-      this.isMouseDownEarth = false;
-      this.isMouseRotatingEarth = false;
-    }
-  }
-
-  onTouchEnd(event: any) {
-    this.isMouseDownEarth = false;
-    this.isMouseRotatingEarth = false;
-  }
-
-  onMouseWheel(event: any) {
-    const newFov = this.camera.fov - event.wheelDeltaY * .1;
-    const minOrMaxFov = Math.max( Math.min( newFov, MAX_FOV ), MIN_FOV );
-
-    TWEEN.removeAll();
-    this.tweenCamera = new TWEEN.Tween({ fov: this.camera.fov })
-      .to({ fov: minOrMaxFov }, 100 )
-      .easing(TWEEN.Easing.Linear.None)
-      .onUpdate((camera) => {
-        this.camera.fov = camera.fov;
-        this.camera.updateProjectionMatrix();
-        this.renderer.render(this.scene, this.camera);
-      });
-    
-    this.tweenCamera.start();
+    // TODO
   }
 }
 
