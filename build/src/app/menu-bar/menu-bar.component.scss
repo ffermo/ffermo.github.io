@@ -1,0 +1,15 @@
+.menu-container {
+  left: 0;
+  top: 0;
+  position: absolute;
+  height: 100%;
+  width: 15%;
+  background-color: rgba(0, 0, 0, .5);
+    
+  .menu-item {
+    display: flex;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: bold;
+  }
+}
