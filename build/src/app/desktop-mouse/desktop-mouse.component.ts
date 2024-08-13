@@ -76,7 +76,7 @@ export class DesktopMouseComponent implements OnInit {
     if (intersects.length > 0) {
       intersects.forEach(intersect => {
         const localPoint = new THREE.Vector3();
-        this.earth.worldToLocal(localPoint.copy(intersect.point)); 
+        this.earth.worldToLocal(localPoint.copy(intersect.point));
         this.spherical.setFromVector3(localPoint);
 
         const lon = THREE.MathUtils.radToDeg(this.spherical.theta);

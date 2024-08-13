@@ -11,6 +11,7 @@ import {
   GALAXY_TEXTURE_PATH, 
   MAX_CAMERA_DIST, 
   MIN_CAMERA_DIST } from '../../util/scene.util';
+import { Coordinates } from '../../util/location.util';
 
 const TEXTURE_PATHS: string[] = [
   GALAXY_TEXTURE_PATH,
@@ -35,14 +36,14 @@ export class GalaxyCanvasComponent implements OnInit, AfterViewInit {
     private deviceService: DeviceDetectorService,
     private cdr: ChangeDetectorRef
   ) {
+
     CameraControls.install( { THREE: THREE } );
+
     if (this.deviceService.isMobile()) {
-      console.log("MOBILE LOADED");
       this.isMobile = this.deviceService.isMobile();
     }
 
     if (this.deviceService.isDesktop()) {
-      console.log("DESKTOP LOADED");
       this.isDesktop = this.deviceService.isDesktop();
     }
   }
@@ -147,7 +148,7 @@ export class GalaxyCanvasComponent implements OnInit, AfterViewInit {
 
   setLights() {
     this.directLight = new THREE.DirectionalLight(0xfdfbd3, .75);
-    this.directLight.position.set( 4, 0, 1 );
+    this.directLight.position.set( 0, 0, 1 );
     this.directLight.castShadow = true;
     this.directLight.target = this.earth;
 
@@ -184,6 +185,30 @@ export class GalaxyCanvasComponent implements OnInit, AfterViewInit {
     );
   }
 
+  onViewOnMap(coords: Coordinates) {
+    const spherical: THREE.Spherical = new THREE.Spherical(
+      undefined,
+      THREE.MathUtils.degToRad(90 - coords.lat),
+      THREE.MathUtils.degToRad(coords.lon)
+    )
+
+    const arrestCamera: boolean = this.controls.azimuthAngle === spherical.theta &&
+      this.controls.polarAngle === spherical.phi &&
+      this.controls.distance === MIN_CAMERA_DIST;
+    
+    if (!arrestCamera) {
+      this.controls.moveTo(0, 0, 8, true);
+      this.controls.setTarget(
+        this.earth.position.x,
+        this.earth.position.y,
+        this.earth.position.z,
+        true
+      );
+      this.controls.dollyTo(MIN_CAMERA_DIST, true);
+      this.controls.rotateTo(spherical.theta, spherical.phi, true);
+    }
+  }
+
   updateScene() {
     this.camera.aspect = this.spaceCanvas.width / this.spaceCanvas.height;
     this.camera.updateProjectionMatrix();
@@ -196,7 +221,6 @@ export class GalaxyCanvasComponent implements OnInit, AfterViewInit {
       cancelAnimationFrame(this.animationFrame);
     }
     this.controls.update(this.clock.getDelta());
-    console.log(this.camera.fov);
     this.animationFrame = requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
   }
