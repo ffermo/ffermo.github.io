@@ -12,7 +12,7 @@ function GalaxyMesh(props: InitMeshProps) {
 
   const galaxyMaterial = new THREE.MeshBasicMaterial( {
     map: galaxyTexture,
-    side: THREE.DoubleSide
+    side: THREE.BackSide
   } );
 
 

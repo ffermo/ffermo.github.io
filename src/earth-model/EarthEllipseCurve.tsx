@@ -10,15 +10,17 @@ function EarthEllipseCurve() {
   const earthEllipse = new THREE.EllipseCurve(
     0,
     0,
-    EARTH_AU,
+    // TODO: Set up earth's eccentricity
+    EARTH_AU / 2,
     EARTH_AU,
   );
-  const ellipsePoints = earthEllipse.getPoints(1000);
+  const ellipsePoints = earthEllipse.getPoints(2000);
 
   useEffect(() => {
+    // TODO: Set up earth's inclination.
     const ellipse = earthEllipseRef.current;
     if (ellipse) {
-      ellipse.rotateX(0.124878308 + (Math.PI / 2));
+      ellipse.rotateX(Math.PI / 2);
     }
   })
 

@@ -15,8 +15,8 @@ function SceneControl() {
 
   // Mouse handlers
   let isCameraAtRest: boolean = true;
-  let isMouseDown: boolean = false;
-  let isMouseDragging: boolean = false;
+  let isPointerDown: boolean = false;
+  let isPointerDragging: boolean = false;
 
   // Scene objects
   let sun = state?.scene?.getObjectByName(SpaceObjectName.SUN_SPHERE);
@@ -28,21 +28,42 @@ function SceneControl() {
       document.body.addEventListener("mousedown", (event: MouseEvent) => {
         const target = event?.target as HTMLElement;
         if (event.button == 0 && target?.nodeName === "CANVAS") {
-          isMouseDown = true;
+          isPointerDown = true;
+        }
+      });
+
+      document.body.addEventListener("touchstart", (event: TouchEvent) => {
+        const target = event?.target as HTMLElement;
+        if (event.touches.length <= 1 && target?.nodeName === "CANVAS") {
+          isPointerDown = true;
         }
       });
 
       document.body.addEventListener("mousemove", (event: MouseEvent) => {
-        if (isMouseDown && event?.button === 0) {
-          isMouseDragging = true;
+        if (isPointerDown && event?.button === 0) {
+          isPointerDragging = true;
+          isCameraAtRest = false;
+        }
+      });
+
+      document.body.addEventListener("touchmove", (event: TouchEvent) => {
+        if (isPointerDown && event.touches.length <= 2) {
+          isPointerDragging = true;
           isCameraAtRest = false;
         }
       });
 
       document.body.addEventListener("mouseup", event => {
         if (event.button === 0) {
-          isMouseDown = false;
-          isMouseDragging = false;
+          isPointerDown = false;
+          isPointerDragging = false;
+        }
+      });
+
+      document.body.addEventListener("touchend", event => {
+        if (event.touches.length === 0) {
+          isPointerDown = false;
+          isPointerDragging = false;
         }
       });
 
@@ -65,9 +86,9 @@ function SceneControl() {
     }
   })
 
-  useFrame((_state: RootState, delta: number) => {
-    if (isCameraAtRest && !isMouseDragging) {
-      cameraControls?.rotate(camRadiansPerSecond() * delta * 1000, 0, true);
+  useFrame((state: RootState, delta: number) => {
+    if (isCameraAtRest && !isPointerDragging) {
+      cameraControls?.rotate(camRadiansPerSecond() * delta * 1000, 0, false);
     }
 
     sun?.rotateY(SUN_RADIANS_PER_SECOND * delta * 1000);
@@ -75,14 +96,14 @@ function SceneControl() {
     // earthEllipse?.rotateX(EARTH_RADIANS_PER_SECOND * delta * 1000);
     clouds?.rotateY((EARTH_RADIANS_PER_SECOND * delta * 999));
 
-    const updated = cameraControls?.update(state?.clock.getDelta());
-    if (updated) {
-      state?.gl.render(state?.scene, state?.camera);
-    }
+    if (cameraControls.update(state.clock.getDelta())) {
+      state.gl.render(state.scene, state.camera);
+    };
   })
 
   function focusEarth(cameraControls: CameraControls, transition: boolean): void {
     if (earth && clouds) {
+      isCameraAtRest = false;
       cameraControls.setTarget(earth.position.x, earth.position.y, earth.position.z, transition);
       const minDistance = cameraControls.getDistanceToFitSphere(EARTH_RADIUS);
       cameraControls.minDistance = minDistance;
@@ -93,6 +114,7 @@ function SceneControl() {
 
   function focusSun(cameraControls: CameraControls, transition: boolean): void {
     if (sun) {
+      isCameraAtRest = false;
       cameraControls.setTarget(sun.position.x, sun.position.y, sun.position.z, transition);
       const minDistance = cameraControls.getDistanceToFitSphere(SUN_RADIUS);
       cameraControls.minDistance = minDistance;
@@ -123,6 +145,11 @@ function SceneControl() {
         middle: 0, // None
         right: 0, // None
         wheel: 8 // Dolly
+      } }
+      touches={ {
+        one: 32, // Touch Rotate
+        two: 4096, // Touch Dolly
+        three: 0 // None
       } }
       restThreshold={ .00125 }/>
   )

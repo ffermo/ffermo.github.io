@@ -29,9 +29,10 @@ function MenuBar() {
 
   return (
     <div className="menu-container">
-      <div className="menu-item" onClick={viewHomeOnMap}>HOME</div>
-      <div className="menu-item" onClick= {viewCollegeOnMap}>EDUCATION</div>
-      <div className="menu-item" onClick={viewBirthplaceOnMap}>BORN</div>
+      {/* TODO */}
+      {/* <div className="menu-item" onClick={viewHomeOnMap}>HOME</div> */}
+      {/* <div className="menu-item" onClick= {viewCollegeOnMap}>EDUCATION</div> */}
+      {/* <div className="menu-item" onClick={viewBirthplaceOnMap}>BORN</div> */}
       <div className="menu-item" onClick={focusSun}>SUN</div>
       <div className="menu-item" onClick={focusEarth}>EARTH</div>
     </div>

@@ -10,7 +10,7 @@ function EarthCloudMesh(props: InitMeshProps) {
   const earthCloudTexture = props.textureLoader.load(EARTH_CLOUDS);
 
   earthCloudTexture.colorSpace = THREE.SRGBColorSpace;
-  const earthCloudMaterial = new THREE.MeshPhongMaterial({
+  const earthCloudMaterial = new THREE.MeshLambertMaterial({
     alphaMap: earthCloudTexture,
     transparent: true,
   });

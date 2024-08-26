@@ -25,7 +25,6 @@ function SunMesh(props: InitMeshProps) {
         <pointLight
           color={ 0xfdfbd3 }
           intensity={ 30000 }
-          position={ [0, 0, 0] }
           castShadow={ true } />
       </mesh>
       

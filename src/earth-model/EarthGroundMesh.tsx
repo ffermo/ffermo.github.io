@@ -15,7 +15,7 @@ function EarthGroundMesh(props: InitMeshProps) {
   earthTexture.colorSpace = THREE.SRGBColorSpace;
   bumpTexture.colorSpace = THREE.SRGBColorSpace;
   specularTexture.colorSpace = THREE.SRGBColorSpace;
-  const earthMaterial = new THREE.MeshPhongMaterial({
+  const earthMaterial = new THREE.MeshLambertMaterial({
     map: earthTexture,
     bumpMap: bumpTexture,
     bumpScale: 5,
