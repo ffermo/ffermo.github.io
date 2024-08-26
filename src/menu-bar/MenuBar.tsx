@@ -7,17 +7,18 @@ import { SpaceObjectName } from '../util/scene.util';
 function MenuBar() {
   const dispatch = useDispatch<AppDispatch>();
 
-  function viewHomeOnMap() {
-    console.log("HOME");
-  }
+  // TODO: Refactor methods from Angular webpage.
+  // function viewHomeOnMap() {
+  //   console.log("HOME");
+  // }
 
-  function viewCollegeOnMap() {
-    console.log("COLLEGE");
-  }
+  // function viewCollegeOnMap() {
+  //   console.log("COLLEGE");
+  // }
 
-  function viewBirthplaceOnMap() {
-    console.log("BIRTH");
-  }
+  // function viewBirthplaceOnMap() {
+  //   console.log("BIRTH");
+  // }
 
   function focusSun() {
     dispatch(SetCameraTargetAction(SpaceObjectName.SUN_SPHERE));
