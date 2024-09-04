@@ -96,7 +96,7 @@ function SceneControl() {
     // earthEllipse?.rotateX(EARTH_RADIANS_PER_SECOND * delta * 1000);
     clouds?.rotateY((EARTH_RADIANS_PER_SECOND * delta * 999));
 
-    if (cameraControls.update(state.clock.getDelta())) {
+    if (cameraControls?.update(state.clock.getDelta())) {
       state.gl.render(state.scene, state.camera);
     };
   })
