@@ -100,7 +100,7 @@ function EarthScene(props: EllipseProps) {
   }
   useFrame((state: RootState, delta: number) => {
     if (earth && clouds && ellipse && ellipsePath) {
-      const time = (state.clock.getElapsedTime() * .00005) % 1;
+      const time = (state.clock.getElapsedTime() * .0005) % 1;
       const point = ellipsePath.getPointAt(time);
 
       if (cameraControls && isCameraAtRest) {
