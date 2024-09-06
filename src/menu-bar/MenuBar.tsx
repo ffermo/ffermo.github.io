@@ -2,7 +2,7 @@ import { useDispatch } from 'react-redux';
 import './MenuBar.css';
 import { AppDispatch } from '../space-store/space.store';
 import { SetCameraTargetAction } from '../space-store/space.actions';
-import { SpaceObjectName } from '../util/scene.util';
+import { SpaceObject } from '../util/scene.util';
 
 function MenuBar() {
   const dispatch = useDispatch<AppDispatch>();
@@ -21,11 +21,11 @@ function MenuBar() {
   // }
 
   function focusSun() {
-    dispatch(SetCameraTargetAction(SpaceObjectName.SUN_SPHERE));
+    dispatch(SetCameraTargetAction(SpaceObject.SUN_SPHERE));
   }
 
   function focusEarth() {
-    dispatch(SetCameraTargetAction(SpaceObjectName.EARTH_SPHERE));
+    dispatch(SetCameraTargetAction(SpaceObject.EARTH_SPHERE));
   }
 
   return (

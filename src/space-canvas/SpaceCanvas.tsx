@@ -1,12 +1,9 @@
-import { Canvas, useLoader } from '@react-three/fiber';
 import  * as THREE  from 'three';
-import GalaxyMesh from '../galaxy-mesh/GalaxyMesh';
-import SunMesh from '../sun-mesh/SunMesh';
-import EarthGroundMesh from '../earth-model/EarthGroundMesh';
+import { Canvas, useLoader } from '@react-three/fiber';
+import GalaxyModel from '../galaxy-model/GalaxyModel';
+import SunModel from '../sun-model/SunModel';
 import SceneControl from '../scene-controller/SceneControl';
 import { CAMERA_FAR_PLANE, CAMERA_FOV, CAMERA_NEAR_PLANE } from '../util/scene.util';
-import EarthCloudMesh from '../earth-model/EarthCloudMesh';
-import EarthEllipseCurve from '../earth-model/EarthEllipseCurve';
 import GALAXY_TEXTURE_IMAGE from '../assets/textures/milkyway.jpg';
 import SUN_TEXTURE from '../assets/textures/sun.jpg';
 import EARTH_TEXTURE from '../assets/textures/earth.jpg';
@@ -15,10 +12,15 @@ import EARTH_SPEC from '../assets/textures/earth_spec.jpg';
 import EARTH_CLOUDS from '../assets/textures/earth_clouds.jpg';
 import { Suspense } from 'react';
 import { Loader } from '@react-three/drei';
+import EarthModel from '../earth-model/EarthModel';
 
-export interface InitMeshProps {
-  textures: THREE.Texture[];
+export interface MeshTextureProps {
+  map?: THREE.Texture;
+  bumpMap?: THREE.Texture;
+  specularMap?: THREE.Texture;
+  alphaMap?: THREE.Texture;
 }
+
 function SpaceCanvas() {
   const [
     galaxyTexture,
@@ -47,23 +49,27 @@ function SpaceCanvas() {
   camera.position.set(0, 0, 8);
 
   return (
-    <>
-      <Canvas camera={ camera }>
-        <Suspense fallback={ null }>
-          <ambientLight
-            color={ 0xfdfbd3 }
-            intensity={ .1 }
-            position={ [0, 0, 0] } />
-          <GalaxyMesh textures={ [galaxyTexture] }/>
-          <SunMesh textures={ [sunTexture] }/>
-          <EarthGroundMesh textures={ [earthTexture, earthBumpTexture, earthSpecTexture] }/>
-          <EarthCloudMesh textures={ [earthCloudTexture] } />
-          <EarthEllipseCurve />
-        </Suspense>
+    <Canvas camera={ camera }>
+      <ambientLight
+        color={ 0xfdfbd3 }
+        intensity={ .1 }
+        position={ [0, 0, 0] } />
+      <GalaxyModel
+        galaxyTexture={ galaxyTexture }
+      />
+      <SunModel
+        sunTexture={ sunTexture }
+      />
+      <EarthModel
+        earthTexture={ earthTexture }
+        earthBumpTexture={ earthBumpTexture }
+        earthSpecTexture={ earthSpecTexture }
+        earthCloudTexture={ earthCloudTexture }
+      />
+      <Suspense fallback={ <Loader /> }>
         <SceneControl />
-      </Canvas>
-      <Loader />
-    </>
+      </Suspense>
+    </Canvas>
   )
 }
 

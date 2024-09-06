@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { useEffect, useRef } from 'react';
-import { InitMeshProps } from '../space-canvas/SpaceCanvas';
 
-function GalaxyMesh(props: InitMeshProps) {
+export interface GalaxyModelProps {
+  galaxyTexture: THREE.Texture;
+}
+
+function GalaxyModel(props: GalaxyModelProps) {
   const galaxyRef = useRef<any>();
 
   useEffect(() => {
@@ -15,11 +18,11 @@ function GalaxyMesh(props: InitMeshProps) {
       ref={ galaxyRef }>
       <sphereGeometry args={[1024, 1024, 1024]}/>
       <meshBasicMaterial args={[{
-        map: props.textures[0],
+        map: props.galaxyTexture,
         side: THREE.BackSide,
       }]} />
     </mesh>
   )
 }
 
-export default GalaxyMesh;
+export default GalaxyModel;

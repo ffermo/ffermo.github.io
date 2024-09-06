@@ -7,7 +7,6 @@ import SpaceCanvas from './space-canvas/SpaceCanvas';
 
 function App() {  // Dynamically canvas size with resizing of window.
   console.log("App Rendered");
-  // const dispatch = useDispatch<AppDispatch>();
   
   function updateCanvas() {
     document.getElementById("canvas")?.style.setProperty("width", window.innerWidth + "px");

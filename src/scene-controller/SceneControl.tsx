@@ -1,17 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { RootState, useFrame, useThree } from '@react-three/fiber';
 import { EARTH_RADIANS_PER_SECOND, EARTH_RADIUS, SUN_RADIANS_PER_SECOND, SUN_RADIUS } from '../util/solarsystem.util';
-import { SpaceObjectName } from '../util/scene.util';
-import { selectCameraTarget } from '../space-store/space.hooks';
-import { useSelector } from 'react-redux';
+import { SpaceObject } from '../util/scene.util';
+import { selectCameraControls, selectCameraTarget, } from '../space-store/space.hooks';
+import { useDispatch, useSelector } from 'react-redux';
 import { CameraControls } from '@react-three/drei';
+import { SetCameraControlsAction } from '../space-store/space.actions';
+import { AppDispatch } from '../space-store/space.store';
+import { Scene } from 'three';
 
 function SceneControl() {
   console.log("SceneControl Rendered");
-  const controlsRef = useRef<CameraControls>(null);
-  const cameraControls: CameraControls  = controlsRef?.current as CameraControls;
-  const state: RootState = useThree();
-  const cameraTarget = useSelector(selectCameraTarget);
+  const dispatch = useDispatch<AppDispatch>();
+  const scene: Scene = useThree(state => state.scene);
+  const cameraControls: CameraControls = useSelector(selectCameraControls) as CameraControls;
+  const cameraTarget: SpaceObject = useSelector(selectCameraTarget);
 
   // Mouse handlers
   let isCameraAtRest: boolean = true;
@@ -19,10 +22,19 @@ function SceneControl() {
   let isPointerDragging: boolean = false;
 
   // Scene objects
-  let sun = state?.scene?.getObjectByName(SpaceObjectName.SUN_SPHERE);
-  let earth = state?.scene?.getObjectByName(SpaceObjectName.EARTH_SPHERE);
-  // let earthEllipse = state?.scene?.getObjectByName(SpaceObjectName.EARTH_ELLIPSE);
-  let clouds = state?.scene?.getObjectByName(SpaceObjectName.CLOUD_SPHERE);
+  let sun = scene?.getObjectByName(SpaceObject.SUN_SPHERE);
+  let earth = scene?.getObjectByName(SpaceObject.EARTH_SPHERE);
+  let clouds = scene?.getObjectByName(SpaceObject.CLOUD_SPHERE);
+
+  const setCameraControls = useCallback((cameraControls: CameraControls) => {
+    if (cameraControls) {
+      // cameraControls = cameraControlsRef;
+      dispatch(SetCameraControlsAction(cameraControls))
+    } else {
+      console.warn("CameraControls CB did not initialize correctly.");
+    }
+  }, []);
+
   useEffect(() => {
     if (cameraControls) {
       document.body.addEventListener("mousedown", (event: MouseEvent) => {
@@ -67,39 +79,33 @@ function SceneControl() {
         }
       });
 
-      cameraControls.addEventListener("rest", () => {
-        isCameraAtRest = true;
-      });
-
+      cameraControls.addEventListener("rest", () => isCameraAtRest = true);
       switch (cameraTarget) {
-        case SpaceObjectName.EARTH_SPHERE:
+        case SpaceObject.EARTH_SPHERE:
           focusEarth(cameraControls, true);
           break;
-        case SpaceObjectName.SUN_SPHERE:
+        case SpaceObject.SUN_SPHERE:
           focusSun(cameraControls, true);
           break;
         default:
           console.log("TARGET NOT IMPLEMENTED: " + cameraTarget + " - FOCUSING EARTH");
-          focusEarth(cameraControls, false);
+          focusEarth(cameraControls, true);
           break;
       }
     }
   })
 
   useFrame((state: RootState, delta: number) => {
-    if (isCameraAtRest && !isPointerDragging) {
-      cameraControls?.rotate(camRadiansPerSecond() * delta * 1000, 0, false);
+    if (cameraControls) {
+      if (cameraControls.update(delta)) {
+        state.gl.render(state.scene, state.camera);
+      };
+  
+      if (isCameraAtRest && !isPointerDragging) {
+        cameraControls.rotate(camRadiansPerSecond() * delta * 1000, 0, false);
+      }
     }
-
-    sun?.rotateY(SUN_RADIANS_PER_SECOND * delta * 1000);
-    earth?.rotateY(EARTH_RADIANS_PER_SECOND * delta * 1000);
-    // earthEllipse?.rotateX(EARTH_RADIANS_PER_SECOND * delta * 1000);
-    clouds?.rotateY((EARTH_RADIANS_PER_SECOND * delta * 999));
-
-    if (cameraControls?.update(state.clock.getDelta())) {
-      state.gl.render(state.scene, state.camera);
-    };
-  })
+  });
 
   function focusEarth(cameraControls: CameraControls, transition: boolean): void {
     if (earth && clouds) {
@@ -125,9 +131,9 @@ function SceneControl() {
 
   function camRadiansPerSecond(): number {
     switch (cameraTarget) {
-      case SpaceObjectName.EARTH_SPHERE:
+      case SpaceObject.EARTH_SPHERE:
         return EARTH_RADIANS_PER_SECOND;
-      case SpaceObjectName.SUN_SPHERE:
+      case SpaceObject.SUN_SPHERE:
         return SUN_RADIANS_PER_SECOND;
       default:
         return 0;
@@ -135,23 +141,27 @@ function SceneControl() {
   }
 
   return (
-    <CameraControls 
-      ref={ controlsRef }
-      camera={ state?.camera }
-      domElement={ state?.gl.domElement }
-      dollySpeed={ .25 }
-      mouseButtons={ {
-        left: 1, // Rotate
-        middle: 0, // None
-        right: 0, // None
-        wheel: 8 // Dolly
-      } }
-      touches={ {
-        one: 32, // Touch Rotate
-        two: 4096, // Touch Dolly
-        three: 0 // None
-      } }
-      restThreshold={ .00125 }/>
+    <>
+      <CameraControls
+        ref={ setCameraControls }
+        azimuthRotateSpeed={ .5 }
+        polarRotateSpeed={ .5 }
+        dollySpeed={ .25 }
+        maxSpeed={ 50 }
+        mouseButtons={ {
+          left: 1, // Rotate
+          middle: 0, // None
+          right: 0, // None
+          wheel: 8 // Dolly
+        } }
+        touches={ {
+          one: 32, // Touch Rotate
+          two: 4096, // Touch Dolly
+          three: 0 // None
+        } }
+        draggingSmoothTime={ .25 }
+        restThreshold={ .00125 }/>
+    </>
   )
 }
 

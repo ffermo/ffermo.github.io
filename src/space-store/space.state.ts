@@ -1,8 +1,9 @@
-import { SpaceObjectName } from "../util/scene.util";
+import { SpaceObject } from "../util/scene.util";
+import { CameraControls } from "@react-three/drei";
 
 export interface SpaceState {
   canvasState: CanvasState;
-  cameraTarget: SpaceObjectName;
+  cameraState: CameraState;
 }
 
 export interface CanvasState {
@@ -10,12 +11,22 @@ export interface CanvasState {
   height: number
 }
 
+export interface CameraState {
+  target: SpaceObject;
+  controls?: CameraControls;
+}
+
 export const initialCanvasState: CanvasState = {
   width: 0,
   height: 0,
 }
 
+export const initialCameraTargetState: CameraState = {
+  target: SpaceObject.EARTH_SPHERE,
+  controls: undefined,
+}
+
 export const initialSpaceState: SpaceState = {
   canvasState: initialCanvasState,
-  cameraTarget: SpaceObjectName.EARTH_SPHERE
+  cameraState: initialCameraTargetState,
 }
