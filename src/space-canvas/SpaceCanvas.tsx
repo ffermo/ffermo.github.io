@@ -1,5 +1,6 @@
 import  * as THREE  from 'three';
 import { Canvas, useLoader } from '@react-three/fiber';
+import { Suspense, useMemo } from 'react';
 import GalaxyModel from '../galaxy-model/GalaxyModel';
 import SunModel from '../sun-model/SunModel';
 import SceneControl from '../scene-controller/SceneControl';
@@ -10,7 +11,6 @@ import EARTH_TEXTURE from '../assets/textures/earth.jpg';
 import EARTH_BUMP from '../assets/textures/earth_bump.jpg';
 import EARTH_SPEC from '../assets/textures/earth_spec.jpg';
 import EARTH_CLOUDS from '../assets/textures/earth_clouds.jpg';
-import { Suspense } from 'react';
 import { Loader } from '@react-three/drei';
 import EarthModel from '../earth-model/EarthModel';
 
@@ -21,7 +21,21 @@ export interface MeshTextureProps {
   alphaMap?: THREE.Texture;
 }
 
-function SpaceCanvas() {
+class SRGBTextureLoader extends THREE.TextureLoader {
+  load(
+    url: string,
+    onLoad?: (data: THREE.Texture<HTMLImageElement>) => void,
+    onProgress?: (event: ProgressEvent) => void,
+    onError?: (err: unknown) => void
+  ): THREE.Texture<HTMLImageElement> {
+    return super.load(url, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      onLoad?.(texture);
+    }, onProgress, onError);
+  }
+}
+
+function SpaceScene() {
   const [
     galaxyTexture,
     sunTexture,
@@ -29,7 +43,7 @@ function SpaceCanvas() {
     earthBumpTexture,
     earthSpecTexture,
     earthCloudTexture,
-  ] = useLoader(THREE.TextureLoader, [
+  ] = useLoader(SRGBTextureLoader, [
     GALAXY_TEXTURE_IMAGE,
     SUN_TEXTURE,
     EARTH_TEXTURE,
@@ -38,18 +52,8 @@ function SpaceCanvas() {
     EARTH_CLOUDS,
   ]);
 
-  galaxyTexture.colorSpace = THREE.SRGBColorSpace;
-  sunTexture.colorSpace = THREE.SRGBColorSpace;
-  earthTexture.colorSpace = THREE.SRGBColorSpace;
-  earthBumpTexture.colorSpace = THREE.SRGBColorSpace;
-  earthSpecTexture.colorSpace = THREE.SRGBColorSpace;
-  earthCloudTexture.colorSpace = THREE.SRGBColorSpace;
-
-  const camera: THREE.PerspectiveCamera = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
-  camera.position.set(0, 0, 8);
-
   return (
-    <Canvas camera={ camera }>
+    <>
       <ambientLight
         color={ 0xfdfbd3 }
         intensity={ .1 }
@@ -68,6 +72,22 @@ function SpaceCanvas() {
       />
       <Suspense fallback={ <Loader /> }>
         <SceneControl />
+      </Suspense>
+    </>
+  )
+}
+
+function SpaceCanvas() {
+  const camera: THREE.PerspectiveCamera = useMemo(() => {
+    const cam = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
+    cam.position.set(0, 0, 8);
+    return cam;
+  }, []);
+
+  return (
+    <Canvas camera={ camera }>
+      <Suspense fallback={ null }>
+        <SpaceScene />
       </Suspense>
     </Canvas>
   )

@@ -6,7 +6,7 @@ export interface GalaxyModelProps {
 }
 
 function GalaxyModel(props: GalaxyModelProps) {
-  const galaxyRef = useRef<any>();
+  const galaxyRef = useRef<THREE.Mesh>(null);
 
   useEffect(() => {
     galaxyRef.current?.rotateZ(Math.PI/4);

@@ -1,4 +1,5 @@
-import { SpaceObject } from "../util/scene.util";
+import { GeoCoordinates } from "../util/location.util";
+import { SpaceTarget } from "../util/scene.util";
 import { CameraControls } from "@react-three/drei";
 
 export interface SpaceState {
@@ -11,8 +12,14 @@ export interface CanvasState {
   height: number
 }
 
+export interface GeoCoordinateState {
+  prevTarget?: GeoCoordinates,
+  nextTarget?: GeoCoordinates
+}
+
 export interface CameraState {
-  target: SpaceObject;
+  spaceTarget: SpaceTarget;
+  earthTarget?: GeoCoordinateState;
   controls?: CameraControls;
 }
 
@@ -22,7 +29,11 @@ export const initialCanvasState: CanvasState = {
 }
 
 export const initialCameraTargetState: CameraState = {
-  target: SpaceObject.EARTH_SPHERE,
+  spaceTarget: SpaceTarget.EARTH_SPHERE,
+  earthTarget: {
+    prevTarget: undefined,
+    nextTarget: undefined
+  },
   controls: undefined,
 }
 

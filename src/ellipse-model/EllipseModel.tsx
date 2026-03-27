@@ -15,7 +15,7 @@ export class EllipsePath extends THREE.Curve<THREE.Vector3> {
   }
 
   getPoint(t: number) {
-    var radians = 2 * Math.PI * t;
+    const radians = 2 * Math.PI * t;
     const vector = new THREE.Vector3(
       this.xRadius * Math.cos( radians ),
       this.yRadius * Math.sin( radians ),

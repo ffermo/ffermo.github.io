@@ -4,9 +4,7 @@ import { useEffect } from 'react';
 function SpaceLoader() {
   const { progress } = useProgress();
   useEffect(() => {
-    let interval
-
-    interval = setInterval(() => {
+    const interval = setInterval(() => {
       console.log(`Progress: ${progress}%`)
     })
 

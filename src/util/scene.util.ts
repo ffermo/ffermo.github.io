@@ -7,7 +7,7 @@ export const CAMERA_FAR_PLANE: number = 2000;
 export const MAX_CAMERA_DIST: number = 48;
 export const MIN_CAMERA_DIST: number = 1.5;
 
-export enum SpaceObject {
+export enum SpaceTarget {
   NONE = "None",
   SUN_SPHERE = "SunSphere",
   EARTH_SPHERE = "EarthSphere",
