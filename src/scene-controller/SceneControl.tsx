@@ -64,7 +64,7 @@ function SceneControl() {
   function camRadiansPerSecond(): number {
     switch (spaceTarget) {
       case SpaceTarget.EARTH_SPHERE:
-        return EARTH_RADIANS_PER_SECOND;
+        return 0; // EarthScene co-locates Earth + camera rotation
       case SpaceTarget.SUN_SPHERE:
         return SUN_RADIANS_PER_SECOND;
       default:
@@ -141,7 +141,7 @@ function SceneControl() {
       if (cameraControls.update(delta)) {
         state.gl.render(state.scene, state.camera);
       };
-  
+
       if (cameraAtRest.current && !cameraTransition.current) {
         cameraControls.rotate(camRadiansPerSecond() * delta * 1000, 0, false);
       }

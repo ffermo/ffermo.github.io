@@ -48,7 +48,7 @@ function EarthGroundMesh(props: MeshTextureProps) {
     <mesh
       name={ SpaceTarget.EARTH_SPHERE }
       position={ [0, 0, EARTH_AU] }>
-      <sphereGeometry args={[EARTH_RADIUS, 256, 256, (-Math.PI/2) - .002, Math.PI*2]}/>
+      <sphereGeometry args={[EARTH_RADIUS, 256, 256, -Math.PI/2, Math.PI*2]}/>
       <meshLambertMaterial args={[{
         map: props.map,
         bumpMap: props.bumpMap,
@@ -64,12 +64,11 @@ function EarthCloudMesh(props: MeshTextureProps) {
     <mesh
       name={ SpaceTarget.CLOUD_SPHERE }
       position={ [0, 0, EARTH_AU] }>
-      <sphereGeometry args={[EARTH_RADIUS + (EARTH_RADIUS * .005), 256, 256, (-Math.PI/2) - .002, Math.PI*2]}/>
+      <sphereGeometry args={[EARTH_RADIUS + (EARTH_RADIUS * .005), 256, 256, -Math.PI/2, Math.PI*2]}/>
       <meshLambertMaterial args={[{
         alphaMap: props.alphaMap,
         transparent: true,
       }]} />
-      <axesHelper />
     </mesh>
   )
 }
@@ -91,6 +90,7 @@ function EarthEllipseCurve(props: EllipseProps) {
 function EarthScene(props: EllipseProps) {
   console.log("EARTH SCENE LOADING");
   const isCameraAtRest = useRef<boolean>(true);
+  const earthRotation = useRef<number>(0);
 
   const ellipsePath = props.ellipsePath;
   const scene: THREE.Scene = useThree(state => state.scene);
@@ -100,30 +100,20 @@ function EarthScene(props: EllipseProps) {
   const ellipse = scene?.getObjectByName(SpaceTarget.EARTH_ELLIPSE);
   const clouds = scene?.getObjectByName(SpaceTarget.CLOUD_SPHERE);
 
-  async function viewEarthTarget(_prevTarget: GeoCoordinates, nextTarget: GeoCoordinates): Promise<void> {
+  async function viewEarthTarget(nextTarget: GeoCoordinates): Promise<void> {
     isCameraAtRest.current = false;
-    const currentSpherical: THREE.Spherical = new THREE.Spherical(
-      undefined,
-      THREE.MathUtils.degToRad(90 - nextTarget.lat),
-      THREE.MathUtils.degToRad(nextTarget.lon)
-    )
-    // const azimuthAngle = THREE.MathUtils.euclideanModulo(THREE.MathUtils.degToRad(nextTarget.lon) - THREE.MathUtils.degToRad(prevTarget.lon), Math.PI / 2);
-    // console.log(azimuthAngle);
-    console.log(currentSpherical);
-    console.log(earth.rotation.x);
-
-    const azimuthAngle = earth.rotation.x ?
-      (2 * (Math.PI - (Math.PI / 2 + earth.rotation.y)) + currentSpherical.theta + Math.PI) :
-      (2 * (Math.PI / 2 + earth.rotation.y) + currentSpherical.theta + Math.PI);
+    const rawAzimuth = THREE.MathUtils.degToRad(nextTarget.lon) + earthRotation.current;
+    const delta = THREE.MathUtils.euclideanModulo(rawAzimuth - cameraControls.azimuthAngle + Math.PI, 2 * Math.PI) - Math.PI;
+    const azimuth = cameraControls.azimuthAngle + delta;
+    const polar = Math.PI / 2 - THREE.MathUtils.degToRad(nextTarget.lat);
     await cameraControls.dollyTo(cameraControls.minDistance, true);
-    await cameraControls.rotateTo(azimuthAngle, currentSpherical.phi, true);
-    // earth.updateWorldMatrix(false, false);
+    await cameraControls.rotateTo(azimuth, polar, true);
   }
 
   useEffect(() => {
     if (earth && cameraControls && earthTarget?.prevTarget && earthTarget.nextTarget) {
       cameraControls?.addEventListener("rest", () => isCameraAtRest.current = true);
-      viewEarthTarget(earthTarget.prevTarget, earthTarget.nextTarget)
+      viewEarthTarget(earthTarget.nextTarget)
     }
   });
 
@@ -138,34 +128,22 @@ function EarthScene(props: EllipseProps) {
         clouds.position.copy(point);
         clouds.position.applyMatrix4(ellipse.matrixWorld);
 
-        if (earthTarget) {
+        if (earthTarget?.nextTarget) {
           cameraControls.moveTo(point.x, point.y, point.z, false);
 
-          earth.rotateY(EARTH_RADIANS_PER_SECOND * delta * 1000);
-          // const azimuthAngle =
-          //   earth.rotation.x ?
-          //   (2 * Math.PI - (3 * Math.PI / 2 + earth.rotation.y)) :
-          //   (3 * Math.PI / 2 + earth.rotation.y);
-          // console.log("X=" + earth.rotation.x +
-          //   " Y=" + earth.rotation.y +
-          //   " A=" + azimuthAngle);
-          // console.log();
+          const dTheta = EARTH_RADIANS_PER_SECOND * delta * 1000;
+          earth.rotateY(dTheta);
+          earthRotation.current += dTheta;
           clouds.rotateY(EARTH_RADIANS_PER_SECOND * delta * 999);
-        }
-        // 012101210
 
-        // 012301230
+          // Instant when idle, smooth when user is interacting (preserves drag smoothing)
+          cameraControls.rotate(dTheta, 0, false);
+        }
       }
 
-      // console.log("AZIMUTH: " + cameraControls.azimuthAngle + ", POLAR: " + cameraControls.polarAngle);
-      cameraControls.normalizeRotations();
-      
-        
       if (cameraControls.update(delta)) {
         state.gl.render(state.scene, state.camera);
       };
-        // console.log("AZIMUTH: " + cameraControls.azimuthAngle + ", POLAR: " + cameraControls.polarAngle);
-
     }
   });
   return (
