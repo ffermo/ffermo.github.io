@@ -11,7 +11,7 @@ function GalaxyModel(props: GalaxyModelProps) {
   useEffect(() => {
     galaxyRef.current?.rotateZ(Math.PI/4);
     galaxyRef.current?.rotateY(Math.PI/32);
-  });
+  }, []);
 
   return (
     <mesh

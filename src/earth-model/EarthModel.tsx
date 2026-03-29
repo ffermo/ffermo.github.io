@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { MeshTextureProps } from "../space-canvas/SpaceCanvas";
 import { EllipseProps, SpaceTarget } from "../util/scene.util";
-import { EARTH_AU, EARTH_RADIANS_PER_SECOND, EARTH_RADIUS } from "../util/solarsystem.util";
+import { EARTH_AU, EARTH_FOCAL_DISTANCE, EARTH_RADIUS, EARTH_SEMI_MAJOR, EARTH_SEMI_MINOR, getEarthUtcRotation } from "../util/solarsystem.util";
 import { RootState, useFrame, useThree } from '@react-three/fiber';
 import { EllipsePath } from '../ellipse-model/EllipseModel';
 import { CameraControls, Line } from '@react-three/drei';
 import { shallowEqual, useSelector } from 'react-redux';
 import { selectCameraControls, selectEarthTarget } from '../space-store/space.hooks';
 import { GeoCoordinates } from '../util/location.util';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 export interface EarthModelProps {
   earthTexture: THREE.Texture;
@@ -18,8 +18,8 @@ export interface EarthModelProps {
 }
 
 function EarthModel(props: EarthModelProps) {
-  const ellipsePath = new EllipsePath(EARTH_AU / 2, EARTH_AU, Math.PI / 2);
-  const ellipsePoints = ellipsePath.getPoints(2000);
+  const ellipsePath = useMemo(() => new EllipsePath(EARTH_SEMI_MINOR, EARTH_SEMI_MAJOR, Math.PI / 2), []);
+  const ellipsePoints = useMemo(() => ellipsePath.getPoints(2000), [ellipsePath]);
 
   return (
     <>
@@ -74,23 +74,32 @@ function EarthCloudMesh(props: MeshTextureProps) {
 }
 
 function EarthEllipseCurve(props: EllipseProps) {
-  console.log("EARTH ELLIPSE LOADED!");
-
   return (
     <Line
       name= { SpaceTarget.EARTH_ELLIPSE}
       lineWidth={ 2 }
       color={ "dimgray" }
       points={ props.ellipsePoints as THREE.Vector3[] }
-      position={ [0, 0, 0] }
+      position={ [0, 0, -EARTH_FOCAL_DISTANCE] }
     />
   )
+}
+
+/** Orbital correction so the subsolar longitude faces the Sun (at origin). */
+function sunFacingOffset(earthWorldPos: THREE.Vector3): number {
+  return Math.atan2(-earthWorldPos.x, -earthWorldPos.z) - Math.PI;
 }
 
 function EarthScene(props: EllipseProps) {
   console.log("EARTH SCENE LOADING");
   const isCameraAtRest = useRef<boolean>(true);
-  const earthRotation = useRef<number>(0);
+
+  // Compute initial rotation from UTC + sun-facing correction at orbital position t=0.
+  const initialPoint = props.ellipsePath?.getPointAt(0) ?? new THREE.Vector3();
+  const initialWorldPos = new THREE.Vector3(initialPoint.x, initialPoint.y, initialPoint.z - EARTH_FOCAL_DISTANCE);
+  const initialRotation = getEarthUtcRotation() + sunFacingOffset(initialWorldPos);
+  const earthRotation = useRef<number>(initialRotation);
+  const utcInitialized = useRef<boolean>(false);
 
   const ellipsePath = props.ellipsePath;
   const scene: THREE.Scene = useThree(state => state.scene);
@@ -111,14 +120,27 @@ function EarthScene(props: EllipseProps) {
   }
 
   useEffect(() => {
-    if (earth && cameraControls && earthTarget?.prevTarget && earthTarget.nextTarget) {
-      cameraControls?.addEventListener("rest", () => isCameraAtRest.current = true);
-      viewEarthTarget(earthTarget.nextTarget)
-    }
-  });
+    if (!earth || !cameraControls || !earthTarget?.prevTarget || !earthTarget.nextTarget) return;
+
+    const onRest = () => { isCameraAtRest.current = true; };
+    cameraControls.addEventListener("rest", onRest);
+    viewEarthTarget(earthTarget.nextTarget);
+
+    return () => {
+      cameraControls.removeEventListener("rest", onRest);
+    };
+  }, [earth, cameraControls, earthTarget]);
 
   useFrame((state: RootState, delta: number) => {
     if (earth && clouds && ellipse && ellipsePath) {
+      // Apply initial rotation to mesh on very first frame
+      if (!utcInitialized.current) {
+        const initialAngle = initialRotation % (2 * Math.PI);
+        earth.rotateY(initialAngle);
+        clouds.rotateY(initialAngle);
+        utcInitialized.current = true;
+      }
+
       const time = (state.clock.getElapsedTime() * .0005) % 1;
       const point = ellipsePath.getPointAt(time);
 
@@ -129,12 +151,15 @@ function EarthScene(props: EllipseProps) {
         clouds.position.applyMatrix4(ellipse.matrixWorld);
 
         if (earthTarget?.nextTarget) {
-          cameraControls.moveTo(point.x, point.y, point.z, false);
+          cameraControls.moveTo(earth.position.x, earth.position.y, earth.position.z, false);
 
-          const dTheta = EARTH_RADIANS_PER_SECOND * delta * 1000;
+          // Compute desired rotation: UTC time-of-day + orbital sun-facing correction
+          const desiredRotation = getEarthUtcRotation() + sunFacingOffset(earth.position);
+          const dTheta = desiredRotation - earthRotation.current;
+          earthRotation.current = desiredRotation;
+
           earth.rotateY(dTheta);
-          earthRotation.current += dTheta;
-          clouds.rotateY(EARTH_RADIANS_PER_SECOND * delta * 999);
+          clouds.rotateY(dTheta * 0.999);
 
           // Instant when idle, smooth when user is interacting (preserves drag smoothing)
           cameraControls.rotate(dTheta, 0, false);

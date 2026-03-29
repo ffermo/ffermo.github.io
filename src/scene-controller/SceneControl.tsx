@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { RootState, useFrame, useThree } from '@react-three/fiber';
-import { EARTH_RADIANS_PER_SECOND, EARTH_RADIUS, SUN_RADIANS_PER_SECOND, SUN_RADIUS } from '../util/solarsystem.util';
+import { EARTH_RADIUS, SUN_RADIANS_PER_SECOND, SUN_RADIUS } from '../util/solarsystem.util';
 import { SpaceTarget } from '../util/scene.util';
 import { selectCameraControls, selectSpaceTarget, } from '../space-store/space.hooks';
 import { useDispatch, useSelector } from 'react-redux';
 import { CameraControls } from '@react-three/drei';
 import { SetCameraControlsAction, SetEarthTargetAction } from '../space-store/space.actions';
 import { AppDispatch } from '../space-store/space.store';
-import { Scene } from 'three';
+import * as THREE from 'three';
 import { LONGMONT_CO_LOC } from '../util/location.util';
 
 function SceneControl() {
   console.log("SceneControl Rendered");
   const dispatch = useDispatch<AppDispatch>();
-  const scene: Scene = useThree(state => state.scene);
+  const scene: THREE.Scene = useThree(state => state.scene);
   const cameraControls: CameraControls = useSelector(selectCameraControls) as CameraControls;
   const spaceTarget: SpaceTarget = useSelector(selectSpaceTarget);
 
@@ -40,11 +40,25 @@ function SceneControl() {
   async function focusEarth(cameraControls: CameraControls, transition: boolean): Promise<void> {
     if (earth && clouds) {
       cameraAtRest.current = false;
-      await cameraControls.setTarget(earth.position.x, earth.position.y, earth.position.z, transition);
+      const targetPos = earth.getWorldPosition(new THREE.Vector3());
+
+      // Compute Earth-scale constraints
       const minDistance = cameraControls.getDistanceToFitSphere(EARTH_RADIUS);
+      const maxDistance = minDistance * 10;
+      const midDistance = ((maxDistance - minDistance) * .50) + minDistance;
+
+      // Widen constraints before transition to prevent mid-flight clamping
+      cameraControls.minDistance = Math.min(cameraControls.minDistance, minDistance);
+      cameraControls.maxDistance = Math.max(cameraControls.maxDistance, maxDistance);
+
+      // Animate target and dolly simultaneously for a smooth swoop
+      cameraControls.setTarget(targetPos.x, targetPos.y, targetPos.z, transition);
+      await cameraControls.dollyTo(midDistance, transition);
+
+      // Apply final Earth constraints
       cameraControls.minDistance = minDistance;
-      cameraControls.maxDistance = minDistance * 10;
-      await cameraControls.dollyTo(((cameraControls.maxDistance - cameraControls.minDistance) * .50) + cameraControls.minDistance, transition);
+      cameraControls.maxDistance = maxDistance;
+
       cameraTransition.current = false;
       dispatch(SetEarthTargetAction(LONGMONT_CO_LOC));
     }
@@ -53,11 +67,22 @@ function SceneControl() {
   async function focusSun(cameraControls: CameraControls, transition: boolean): Promise<void> {
     if (sun) {
       cameraAtRest.current = false;
-      await cameraControls.setTarget(sun.position.x, sun.position.y, sun.position.z, transition);
+
       const minDistance = cameraControls.getDistanceToFitSphere(SUN_RADIUS);
+      const maxDistance = minDistance * 10;
+      const targetDistance = ((maxDistance - minDistance) * .15) + minDistance;
+
+      // Widen constraints before transition to prevent mid-flight clamping
+      cameraControls.minDistance = Math.min(cameraControls.minDistance, minDistance);
+      cameraControls.maxDistance = Math.max(cameraControls.maxDistance, maxDistance);
+
+      // Animate target and dolly simultaneously for a smooth swoop
+      cameraControls.setTarget(sun.position.x, sun.position.y, sun.position.z, transition);
+      await cameraControls.dollyTo(targetDistance, transition);
+
+      // Apply final Sun constraints
       cameraControls.minDistance = minDistance;
-      cameraControls.maxDistance = minDistance * 10;
-      await cameraControls.dollyTo(((cameraControls.maxDistance - cameraControls.minDistance) * .15) + cameraControls.minDistance, transition);
+      cameraControls.maxDistance = maxDistance;
     }
   }
 
@@ -72,69 +97,91 @@ function SceneControl() {
     }
   }
 
+  // Register DOM and CameraControls event listeners once when cameraControls is available.
   useEffect(() => {
-    if (cameraControls) {
-      document.body.addEventListener("mousedown", (event: MouseEvent) => {
-        const target = event?.target as HTMLElement;
-        if (event.button == 0 && target?.nodeName === "CANVAS") {
-          isPointerDown.current = true;
-        }
-      });
+    if (!cameraControls) return;
 
-      document.body.addEventListener("touchstart", (event: TouchEvent) => {
-        const target = event?.target as HTMLElement;
-        if (event.touches.length <= 1 && target?.nodeName === "CANVAS") {
-          isPointerDown.current = true;
-        }
-      });
-
-      document.body.addEventListener("mousemove", (event: MouseEvent) => {
-        if (isPointerDown.current && event?.button === 0) {
-          isPointerDragging.current = true;
-          cameraAtRest.current = false;
-        }
-      });
-
-      document.body.addEventListener("touchmove", (event: TouchEvent) => {
-        if (isPointerDown.current && event.touches.length <= 2) {
-          isPointerDragging.current = true;
-          cameraAtRest.current = false;
-        }
-      });
-
-      document.body.addEventListener("mouseup", event => {
-        if (event.button === 0) {
-          isPointerDown.current = false;
-          isPointerDragging.current = false;
-        }
-      });
-
-      document.body.addEventListener("touchend", event => {
-        if (event.touches.length === 0) {
-          isPointerDown.current = false;
-          isPointerDragging.current = false;
-        }
-      });
-
-      cameraControls.addEventListener("rest", () => {
-        cameraAtRest.current = true;
-        cameraTransition.current = false;
-      });
-      cameraControls.addEventListener("transitionstart", () => cameraTransition.current = !isPointerDown.current && !isPointerDragging.current);
-      switch (spaceTarget) {
-        case SpaceTarget.EARTH_SPHERE:
-          focusEarth(cameraControls, true);
-          break;
-        case SpaceTarget.SUN_SPHERE:
-          focusSun(cameraControls, true);
-          break;
-        default:
-          console.log("TARGET NOT IMPLEMENTED: " + spaceTarget + " - FOCUSING EARTH");
-          focusEarth(cameraControls, true);
-          break;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event?.target as HTMLElement;
+      if (event.button == 0 && target?.nodeName === "CANVAS") {
+        isPointerDown.current = true;
       }
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      const target = event?.target as HTMLElement;
+      if (event.touches.length <= 1 && target?.nodeName === "CANVAS") {
+        isPointerDown.current = true;
+      }
+    };
+    const onMouseMove = (event: MouseEvent) => {
+      if (isPointerDown.current && event?.button === 0) {
+        isPointerDragging.current = true;
+        cameraAtRest.current = false;
+      }
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (isPointerDown.current && event.touches.length <= 2) {
+        isPointerDragging.current = true;
+        cameraAtRest.current = false;
+      }
+    };
+    const onMouseUp = (event: MouseEvent) => {
+      if (event.button === 0) {
+        isPointerDown.current = false;
+        isPointerDragging.current = false;
+      }
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length === 0) {
+        isPointerDown.current = false;
+        isPointerDragging.current = false;
+      }
+    };
+    const onRest = () => {
+      cameraAtRest.current = true;
+      cameraTransition.current = false;
+    };
+    const onTransitionStart = () => {
+      cameraTransition.current = !isPointerDown.current && !isPointerDragging.current;
+    };
+
+    document.body.addEventListener("mousedown", onMouseDown);
+    document.body.addEventListener("touchstart", onTouchStart);
+    document.body.addEventListener("mousemove", onMouseMove);
+    document.body.addEventListener("touchmove", onTouchMove);
+    document.body.addEventListener("mouseup", onMouseUp);
+    document.body.addEventListener("touchend", onTouchEnd);
+    cameraControls.addEventListener("rest", onRest);
+    cameraControls.addEventListener("transitionstart", onTransitionStart);
+
+    return () => {
+      document.body.removeEventListener("mousedown", onMouseDown);
+      document.body.removeEventListener("touchstart", onTouchStart);
+      document.body.removeEventListener("mousemove", onMouseMove);
+      document.body.removeEventListener("touchmove", onTouchMove);
+      document.body.removeEventListener("mouseup", onMouseUp);
+      document.body.removeEventListener("touchend", onTouchEnd);
+      cameraControls.removeEventListener("rest", onRest);
+      cameraControls.removeEventListener("transitionstart", onTransitionStart);
+    };
+  }, [cameraControls]);
+
+  // Switch camera target when spaceTarget changes.
+  useEffect(() => {
+    if (!cameraControls) return;
+    switch (spaceTarget) {
+      case SpaceTarget.EARTH_SPHERE:
+        focusEarth(cameraControls, true);
+        break;
+      case SpaceTarget.SUN_SPHERE:
+        focusSun(cameraControls, true);
+        break;
+      default:
+        console.log("TARGET NOT IMPLEMENTED: " + spaceTarget + " - FOCUSING EARTH");
+        focusEarth(cameraControls, true);
+        break;
     }
-  })
+  }, [cameraControls, spaceTarget])
 
   useFrame((state: RootState, delta: number) => {
     if (cameraControls) {
