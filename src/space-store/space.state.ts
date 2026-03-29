@@ -29,7 +29,7 @@ export const initialCanvasState: CanvasState = {
 }
 
 export const initialCameraTargetState: CameraState = {
-  spaceTarget: SpaceTarget.EARTH_SPHERE,
+  spaceTarget: SpaceTarget.SUN_SPHERE,
   earthTarget: {
     prevTarget: undefined,
     nextTarget: undefined

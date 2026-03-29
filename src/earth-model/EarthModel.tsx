@@ -115,8 +115,22 @@ function EarthScene(props: EllipseProps) {
     const delta = THREE.MathUtils.euclideanModulo(rawAzimuth - cameraControls.azimuthAngle + Math.PI, 2 * Math.PI) - Math.PI;
     const azimuth = cameraControls.azimuthAngle + delta;
     const polar = Math.PI / 2 - THREE.MathUtils.degToRad(nextTarget.lat);
-    await cameraControls.dollyTo(cameraControls.minDistance, true);
+    const minDistance = cameraControls.getDistanceToFitSphere(EARTH_RADIUS);
+    const maxDistance = minDistance * 10;
+
+    // Widen constraints before transition to prevent mid-flight clamping
+    cameraControls.minDistance = Math.min(cameraControls.minDistance, minDistance);
+    cameraControls.maxDistance = Math.max(cameraControls.maxDistance, maxDistance);
+    
     await cameraControls.rotateTo(azimuth, polar, true);
+    await cameraControls.dollyTo(cameraControls.minDistance, true);
+
+
+    // Apply final Earth constraints
+    cameraControls.minDistance = minDistance;
+    cameraControls.maxDistance = maxDistance;
+    isCameraAtRest.current = true;
+
   }
 
   useEffect(() => {
@@ -134,7 +148,7 @@ function EarthScene(props: EllipseProps) {
   useFrame((state: RootState, delta: number) => {
     if (earth && clouds && ellipse && ellipsePath) {
       // Apply initial rotation to mesh on very first frame
-      if (!utcInitialized.current) {
+      if (!utcInitialized.current && isCameraAtRest.current) {
         const initialAngle = initialRotation % (2 * Math.PI);
         earth.rotateY(initialAngle);
         clouds.rotateY(initialAngle);

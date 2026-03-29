@@ -43,21 +43,25 @@ function SceneControl() {
       const targetPos = earth.getWorldPosition(new THREE.Vector3());
 
       // Compute Earth-scale constraints
-      const minDistance = cameraControls.getDistanceToFitSphere(EARTH_RADIUS);
-      const maxDistance = minDistance * 10;
-      const midDistance = ((maxDistance - minDistance) * .50) + minDistance;
+      // const minDistance = cameraControls.getDistanceToFitSphere(EARTH_RADIUS);
+      // const maxDistance = minDistance * 10;
+      // const midDistance = ((maxDistance - minDistance) * .50) + minDistance;
 
       // Widen constraints before transition to prevent mid-flight clamping
-      cameraControls.minDistance = Math.min(cameraControls.minDistance, minDistance);
-      cameraControls.maxDistance = Math.max(cameraControls.maxDistance, maxDistance);
+      // cameraControls.minDistance = Math.min(cameraControls.minDistance, minDistance);
+      // cameraControls.maxDistance = Math.max(cameraControls.maxDistance, maxDistance);
 
       // Animate target and dolly simultaneously for a smooth swoop
+
+      // cameraControls.maxDistance = Infinity;
+      
       cameraControls.setTarget(targetPos.x, targetPos.y, targetPos.z, transition);
-      await cameraControls.dollyTo(midDistance, transition);
+      // cameraControls.dollyTo(midDistance, transition);
+      // await cameraControls.moveTo(earth.position.x, earth.position.y, earth.position.z, transition);
 
       // Apply final Earth constraints
-      cameraControls.minDistance = minDistance;
-      cameraControls.maxDistance = maxDistance;
+      // cameraControls.minDistance = minDistance;
+      // cameraControls.maxDistance = maxDistance;
 
       cameraTransition.current = false;
       dispatch(SetEarthTargetAction(LONGMONT_CO_LOC));
