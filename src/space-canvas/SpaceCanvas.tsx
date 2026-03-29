@@ -11,7 +11,6 @@ import EARTH_TEXTURE from '../assets/textures/earth.jpg';
 import EARTH_BUMP from '../assets/textures/earth_bump.jpg';
 import EARTH_SPEC from '../assets/textures/earth_spec.jpg';
 import EARTH_CLOUDS from '../assets/textures/earth_clouds.jpg';
-import { Loader } from '@react-three/drei';
 import EarthModel from '../earth-model/EarthModel';
 
 export interface MeshTextureProps {
@@ -70,9 +69,7 @@ function SpaceScene() {
         earthSpecTexture={ earthSpecTexture }
         earthCloudTexture={ earthCloudTexture }
       />
-      <Suspense fallback={ <Loader /> }>
-        <SceneControl />
-      </Suspense>
+      <SceneControl />
     </>
   )
 }

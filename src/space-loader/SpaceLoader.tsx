@@ -1,20 +1,39 @@
 import { useProgress } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import './SpaceLoader.css';
 
-function SpaceLoader() {
+function SpaceLoader({ onLoaded }: { onLoaded: () => void }) {
   const { progress } = useProgress();
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log(`Progress: ${progress}%`)
-    })
+  const [fadeOut, setFadeOut] = useState(false);
 
-    return () => {
-      clearInterval(interval)
+  useEffect(() => {
+    if (progress === 100) {
+      const timer = setTimeout(() => setFadeOut(true), 400);
+      return () => clearTimeout(timer);
     }
-  }, [progress])
+  }, [progress]);
+
+  useEffect(() => {
+    if (fadeOut) {
+      const timer = setTimeout(onLoaded, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [fadeOut, onLoaded]);
+
   return (
-    <div style={{backgroundColor: "#00B1E1"}}>LOADING</div>
-  )
+    <div className={`loader-overlay${fadeOut ? ' fade-out' : ''}`}>
+      <div className="loader-content">
+        <div className="loader-title">EXPLORING THE COSMOS</div>
+        <div className="loader-bar-track">
+          <div
+            className="loader-bar-fill"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="loader-percent">{Math.round(progress)}%</div>
+      </div>
+    </div>
+  );
 }
 
-export default SpaceLoader
+export default SpaceLoader;

@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import MenuBar from './menu-bar/MenuBar';
 import SpaceCanvas from './space-canvas/SpaceCanvas';
+import SpaceLoader from './space-loader/SpaceLoader';
 
 function App() {  // Dynamically canvas size with resizing of window.
   console.log("App Rendered");
+  const [loaded, setLoaded] = useState(false);
+  const onLoaded = useCallback(() => setLoaded(true), []);
 
   useEffect(() => {
     function updateCanvas() {
@@ -22,7 +25,8 @@ function App() {  // Dynamically canvas size with resizing of window.
       style={{ width: window.innerWidth, height: window.innerHeight}}
       onContextMenu={(ev) => { ev.preventDefault() }} >
       <SpaceCanvas />
-      <MenuBar />
+      {loaded && <MenuBar />}
+      {!loaded && <SpaceLoader onLoaded={onLoaded} />}
     </div>
   );
 }
